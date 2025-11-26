@@ -1,0 +1,38 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{A5B8C7D6-E9F0-1234-5678-90ABCDEF1234}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="ServerApp\RemoteServer.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="ClientApp\RemoteClient.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="RemoteServer">
+        <MSBuild Projects="ServerApp\RemoteServer.dproj"/>
+    </Target>
+    <Target Name="RemoteServer:Clean">
+        <MSBuild Projects="ServerApp\RemoteServer.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="RemoteClient">
+        <MSBuild Projects="ClientApp\RemoteClient.dproj"/>
+    </Target>
+    <Target Name="RemoteClient:Clean">
+        <MSBuild Projects="ClientApp\RemoteClient.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="RemoteServer;RemoteClient"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="RemoteServer:Clean;RemoteClient:Clean"/>
+    </Target>
+</Project>
