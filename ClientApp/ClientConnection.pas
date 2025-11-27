@@ -45,7 +45,7 @@ type
 implementation
 
 uses
-  Winapi.Messages;
+  Winapi.Messages, Vcl.Graphics, Vcl.Imaging.jpeg;
 
 { TClientConnection }
 
@@ -203,17 +203,78 @@ begin
   end;
 end;
 
+function CaptureScreenGDI(Quality: Integer): TBytes;
+var
+  ScreenDC: HDC;
+  Bitmap: TBitmap;
+  JPEGImage: TJPEGImage;
+  Stream: TMemoryStream;
+  ScreenWidth, ScreenHeight: Integer;
+begin
+  SetLength(Result, 0);
+
+  ScreenWidth := GetSystemMetrics(SM_CXSCREEN);
+  ScreenHeight := GetSystemMetrics(SM_CYSCREEN);
+
+  Bitmap := TBitmap.Create;
+  JPEGImage := TJPEGImage.Create;
+  Stream := TMemoryStream.Create;
+  try
+    Bitmap.PixelFormat := pf24bit;
+    Bitmap.Width := ScreenWidth;
+    Bitmap.Height := ScreenHeight;
+
+    ScreenDC := GetDC(0);
+    try
+      BitBlt(Bitmap.Canvas.Handle, 0, 0, ScreenWidth, ScreenHeight,
+             ScreenDC, 0, 0, SRCCOPY);
+    finally
+      ReleaseDC(0, ScreenDC);
+    end;
+
+    JPEGImage.Assign(Bitmap);
+    JPEGImage.CompressionQuality := Quality;
+    JPEGImage.SaveToStream(Stream);
+
+    SetLength(Result, Stream.Size);
+    Stream.Position := 0;
+    Stream.Read(Result[0], Stream.Size);
+  finally
+    Stream.Free;
+    JPEGImage.Free;
+    Bitmap.Free;
+  end;
+end;
+
 procedure TClientConnection.CaptureAndSendScreen;
 var
   ScreenData: TBytes;
   CompressedData: TBytes;
   Packet: TBytes;
+  UseGDI: Boolean;
 begin
+  UseGDI := False; // Tentar Desktop Duplication primeiro
+
   while FCapturing and FConnected do
   begin
     try
-      // Capturar tela em JPEG
-      ScreenData := FDuplicator.CaptureScreenToJPEG(75);
+      if not UseGDI then
+      begin
+        // Tentar Desktop Duplication API
+        ScreenData := FDuplicator.CaptureScreenToJPEG(75);
+
+        if Length(ScreenData) = 0 then
+        begin
+          // Falhou, mudar para GDI
+          UseGDI := True;
+        end;
+      end;
+
+      if UseGDI then
+      begin
+        // Usar GDI como fallback (funciona sem admin)
+        ScreenData := CaptureScreenGDI(75);
+      end;
 
       if Length(ScreenData) > 0 then
       begin
@@ -228,7 +289,12 @@ begin
       // Aguardar antes da próxima captura (aproximadamente 10 FPS)
       Sleep(100);
     except
-      // Ignorar erros de captura
+      on E: Exception do
+      begin
+        // Em caso de erro, tentar GDI
+        UseGDI := True;
+        Sleep(500);
+      end;
     end;
   end;
 end;
