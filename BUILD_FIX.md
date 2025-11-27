@@ -181,3 +181,57 @@ build.bat
 - `ClientApp/ClientMain.pas` - Import Vcl.ComCtrls + TThread.Queue (7 ocorrências)
 
 **Total:** 5 arquivos modificados, 6 problemas diferentes corrigidos.
+
+**Rodada 3 (Correções Desktop Duplication API):**
+- `Common/DesktopDuplication.pas` - Declarações de interfaces DXGI 1.2+ e correções de tipos
+
+### 7. DesktopDuplication.pas - Interfaces DXGI 1.2+ não declaradas
+**Problemas:** Múltiplos erros E2003, E2008, E2033, E2066 relacionados a tipos do DirectX não declarados.
+
+**Causa:** Delphi 12.3 não inclui automaticamente as declarações para DXGI 1.2+ necessárias para Desktop Duplication API.
+
+**Solução:**
+- Adicionadas declarações manuais de interfaces DXGI 1.2+:
+  - `IDXGIOutput1` - Interface para enumerar outputs avançados
+  - `IDXGIOutputDuplication` - Interface para Desktop Duplication
+  - `DXGI_OUTDUPL_FRAME_INFO` - Estrutura de informações de frame
+- Adicionadas constantes de erro:
+  - `DXGI_ERROR_WAIT_TIMEOUT = $887A0027`
+  - `DXGI_ERROR_ACCESS_LOST = $887A0026`
+- Corrigidos parâmetros de funções D3D11:
+  - `D3D11CreateDevice` - Removido @ dos parâmetros
+  - `CreateTexture2D` - Removido @ do TextureDesc
+- Adicionado `Winapi.ActiveX` aos uses
+
+```pascal
+// Declarações adicionadas
+type
+  IDXGIOutput1 = interface(IDXGIOutput)
+    ['{00cddea8-939b-4b83-a340-a685226666cc}']
+    function DuplicateOutput(pDevice: IUnknown;
+      out ppOutputDuplication: IDXGIOutputDuplication): HRESULT; stdcall;
+  end;
+
+  IDXGIOutputDuplication = interface(IDXGIObject)
+    ['{191cfac3-a341-470d-b26e-a864f428319c}']
+    function AcquireNextFrame(TimeoutInMilliseconds: UINT;
+      out pFrameInfo: DXGI_OUTDUPL_FRAME_INFO;
+      out ppDesktopResource: IDXGIResource): HRESULT; stdcall;
+    function ReleaseFrame: HRESULT; stdcall;
+    // ... outras funções
+  end;
+```
+
+**Erros corrigidos:**
+- E2003: IDXGIOutputDuplication não declarado
+- E2003: IDXGIOutput1 não declarado
+- E2003: D3D_FEATURE_LEVEL não declarado (já existe em D3D11)
+- E2003: DXGI_OUTDUPL_FRAME_INFO não declarado
+- E2003: DXGI_ERROR_WAIT_TIMEOUT não declarado
+- E2003: DXGI_ERROR_ACCESS_LOST não declarado
+- E2008: Tipos incompatíveis (corrigido removendo @)
+- E2010: Tipos incompatíveis D3D_DRIVER_TYPE
+- E2033: Parâmetros var incorretos (corrigido)
+- E2066: Operador ou ponto-e-vírgula faltando
+
+**Total:** 6 arquivos modificados, 7 problemas diferentes corrigidos.
