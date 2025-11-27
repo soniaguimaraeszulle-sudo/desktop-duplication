@@ -4,9 +4,64 @@ interface
 
 uses
   Winapi.Windows, Winapi.D3D11, Winapi.DXGI, Winapi.DxgiFormat, Winapi.DxgiType,
-  System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Imaging.jpeg;
+  System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Imaging.jpeg, Winapi.ActiveX;
+
+const
+  D3D_DRIVER_TYPE_HARDWARE = 1;
+  D3D11_SDK_VERSION = 7;
+
+  // DXGI Error Codes
+  DXGI_ERROR_WAIT_TIMEOUT = HRESULT($887A0027);
+  DXGI_ERROR_ACCESS_LOST = HRESULT($887A0026);
 
 type
+  // Forward declarations for DXGI 1.2+
+  IDXGIOutput1 = interface;
+  IDXGIOutputDuplication = interface;
+
+  DXGI_OUTDUPL_FRAME_INFO = record
+    LastPresentTime: LARGE_INTEGER;
+    LastMouseUpdateTime: LARGE_INTEGER;
+    AccumulatedFrames: UINT;
+    RectsCoalesced: BOOL;
+    ProtectedContentMaskedOut: BOOL;
+    PointerPosition: record
+      Position: TPoint;
+      Visible: BOOL;
+    end;
+    TotalMetadataBufferSize: UINT;
+    PointerShapeBufferSize: UINT;
+  end;
+
+  IDXGIOutput1 = interface(IDXGIOutput)
+    ['{00cddea8-939b-4b83-a340-a685226666cc}']
+    function GetDisplayModeList1(EnumFormat: DXGI_FORMAT; Flags: UINT;
+      var pNumModes: UINT; pDesc: Pointer): HRESULT; stdcall;
+    function FindClosestMatchingMode1(const pModeToMatch: Pointer;
+      pClosestMatch: Pointer; pConcernedDevice: IUnknown): HRESULT; stdcall;
+    function GetDisplaySurfaceData1(pDestination: Pointer): HRESULT; stdcall;
+    function DuplicateOutput(pDevice: IUnknown;
+      out ppOutputDuplication: IDXGIOutputDuplication): HRESULT; stdcall;
+  end;
+
+  IDXGIOutputDuplication = interface(IDXGIObject)
+    ['{191cfac3-a341-470d-b26e-a864f428319c}']
+    procedure GetDesc(out pDesc: Pointer); stdcall;
+    function AcquireNextFrame(TimeoutInMilliseconds: UINT;
+      out pFrameInfo: DXGI_OUTDUPL_FRAME_INFO;
+      out ppDesktopResource: IDXGIResource): HRESULT; stdcall;
+    function GetFrameDirtyRects(DirtyRectsBufferSize: UINT;
+      pDirtyRectsBuffer: Pointer; out pDirtyRectsBufferSizeRequired: UINT): HRESULT; stdcall;
+    function GetFrameMoveRects(MoveRectsBufferSize: UINT;
+      pMoveRectBuffer: Pointer; out pMoveRectsBufferSizeRequired: UINT): HRESULT; stdcall;
+    function GetFramePointerShape(PointerShapeBufferSize: UINT;
+      pPointerShapeBuffer: Pointer; out pPointerShapeBufferSizeRequired: UINT;
+      out pPointerShapeInfo: Pointer): HRESULT; stdcall;
+    function MapDesktopSurface(out pLockedRect: Pointer): HRESULT; stdcall;
+    function UnMapDesktopSurface: HRESULT; stdcall;
+    function ReleaseFrame: HRESULT; stdcall;
+  end;
+
   TDesktopDuplicator = class
   private
     FDevice: ID3D11Device;
@@ -29,10 +84,6 @@ type
   end;
 
 implementation
-
-const
-  D3D_DRIVER_TYPE_HARDWARE = 1;
-  D3D11_SDK_VERSION = 7;
 
 { TDesktopDuplicator }
 
@@ -86,23 +137,25 @@ var
   DxgiOutput1: IDXGIOutput1;
   OutputDesc: DXGI_OUTPUT_DESC;
   FeatureLevel: D3D_FEATURE_LEVEL;
+  DriverType: D3D_DRIVER_TYPE;
 begin
   Result := False;
   Cleanup;
 
   try
     // Create D3D11 Device
+    DriverType := D3D_DRIVER_TYPE(D3D_DRIVER_TYPE_HARDWARE);
     hr := D3D11CreateDevice(
       nil,
-      D3D_DRIVER_TYPE_HARDWARE,
+      DriverType,
       0,
       0,
       nil,
       0,
       D3D11_SDK_VERSION,
-      @FDevice,
-      @FeatureLevel,
-      @FDeviceContext
+      FDevice,
+      FeatureLevel,
+      FDeviceContext
     );
 
     if Failed(hr) then
@@ -200,7 +253,7 @@ begin
       TextureDesc.CPUAccessFlags := Ord(D3D11_CPU_ACCESS_READ);
       TextureDesc.MiscFlags := 0;
 
-      hr := FDevice.CreateTexture2D(@TextureDesc, nil, StagingTexture);
+      hr := FDevice.CreateTexture2D(TextureDesc, nil, StagingTexture);
       if Failed(hr) then
         Exit;
 
