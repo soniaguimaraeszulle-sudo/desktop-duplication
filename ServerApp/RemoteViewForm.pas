@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Vcl.Imaging.jpeg, ServerConnection, Protocol, Compression, Winapi.WinSock;
+  Vcl.ComCtrls, Vcl.Imaging.jpeg, ServerConnection, Protocol, Compression, Winapi.WinSock;
 
 type
   TFormRemoteView = class(TForm)
@@ -135,6 +135,8 @@ begin
 end;
 
 procedure TFormRemoteView.OnDataReceived(Socket: TSocket; Command: Byte; const Data: TBytes);
+var
+  DataCopy: TBytes;
 begin
   if Socket <> FClientSocket then
     Exit;
@@ -142,10 +144,11 @@ begin
   if Command = CMD_SCREEN_DATA then
   begin
     FLastScreenData := Data;
-    TThread.Synchronize(nil,
+    DataCopy := Copy(Data);
+    TThread.Queue(nil,
       procedure
       begin
-        ProcessScreenData(Data);
+        ProcessScreenData(DataCopy);
       end);
   end;
 end;

@@ -58,12 +58,78 @@ Compressor := TZCompressionStream.Create(OutputStream, zcDefault);
 Compressor := TZCompressionStream.Create(OutputStream);
 ```
 
+### 4. RemoteViewForm.pas - TStatusBar não declarado
+**Problema:** `E2003 Undeclared identifier: 'TStatusBar'`
+
+**Causa:** Faltava importar Vcl.ComCtrls na cláusula uses.
+
+**Solução:**
+- Adicionado `Vcl.ComCtrls` aos uses
+
+```pascal
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  Vcl.ComCtrls, // <-- ADICIONADO
+  Vcl.Imaging.jpeg, ServerConnection, Protocol, Compression, Winapi.WinSock;
+```
+
+### 5. TThread.Synchronize incompatível
+**Problema:** `E2250 There is no overloaded version of 'Synchronize' that can be called with these arguments`
+
+**Causa:** Em Delphi 12.3, `TThread.Synchronize(nil, procedure...)` não funciona corretamente.
+
+**Solução:**
+- Substituído `TThread.Synchronize` por `TThread.Queue`
+- Adicionado cópias locais de variáveis capturadas em closures
+
+```pascal
+// ANTES
+TThread.Synchronize(nil,
+  procedure
+  begin
+    ProcessScreenData(Data);
+  end);
+
+// DEPOIS
+var
+  DataCopy: TBytes;
+begin
+  DataCopy := Copy(Data);
+  TThread.Queue(nil,
+    procedure
+    begin
+      ProcessScreenData(DataCopy);
+    end);
+```
+
+**Arquivos afetados:**
+- ServerApp/RemoteViewForm.pas (1 ocorrência)
+- ServerApp/MainForm.pas (3 ocorrências)
+- ClientApp/ClientMain.pas (7 ocorrências)
+
+### 6. ClientMain.pas - TStatusBar não declarado
+**Problema:** `E2003 Undeclared identifier: 'TStatusBar'`
+
+**Causa:** Faltava importar Vcl.ComCtrls na cláusula uses.
+
+**Solução:**
+- Adicionado `Vcl.ComCtrls` aos uses
+
+```pascal
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
+  Vcl.ComCtrls, // <-- ADICIONADO
+  ClientConnection, Protocol, SystemInfo;
+```
+
 ## Verificações Adicionais
 
 ✅ ServerConnection.pas - Já tinha Winapi.Winsock
-✅ RemoteViewForm.pas - Já tinha Winapi.Winsock
+✅ RemoteViewForm.pas - Corrigido (Vcl.ComCtrls adicionado)
 ✅ ClientConnection.pas - Já tinha Winapi.Winsock
-✅ ClientMain.pas - Não necessita (não usa TSocket diretamente)
+✅ ClientMain.pas - Corrigido (Vcl.ComCtrls adicionado)
 
 ## Testes de Compilação
 
@@ -104,8 +170,14 @@ build.bat
 
 ## Arquivos Modificados
 
-- `Common/Protocol.pas` - Tipos de string e encoding
+**Rodada 1 (Correções iniciais):**
+- `Common/Protocol.pas` - Tipos de string e encoding UTF-8
 - `Common/Compression.pas` - Construtor TZCompressionStream
 - `ServerApp/MainForm.pas` - Import Winapi.Winsock
 
-Todos os outros arquivos permanecem inalterados.
+**Rodada 2 (Correções adicionais):**
+- `ServerApp/RemoteViewForm.pas` - Import Vcl.ComCtrls + TThread.Queue
+- `ServerApp/MainForm.pas` - TThread.Queue (3 ocorrências)
+- `ClientApp/ClientMain.pas` - Import Vcl.ComCtrls + TThread.Queue (7 ocorrências)
+
+**Total:** 5 arquivos modificados, 6 problemas diferentes corrigidos.

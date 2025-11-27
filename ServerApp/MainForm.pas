@@ -167,21 +167,27 @@ begin
 end;
 
 procedure TFormMain.OnClientConnected(Socket: TSocket);
+var
+  SocketCopy: TSocket;
 begin
-  TThread.Synchronize(nil,
+  SocketCopy := Socket;
+  TThread.Queue(nil,
     procedure
     begin
-      AddClient(Socket);
+      AddClient(SocketCopy);
       StatusBar1.SimpleText := Format('Cliente conectado - Total: %d', [FClients.Count]);
     end);
 end;
 
 procedure TFormMain.OnClientDisconnected(Socket: TSocket);
+var
+  SocketCopy: TSocket;
 begin
-  TThread.Synchronize(nil,
+  SocketCopy := Socket;
+  TThread.Queue(nil,
     procedure
     begin
-      RemoveClient(Socket);
+      RemoveClient(SocketCopy);
       UpdateClientList;
       StatusBar1.SimpleText := Format('Cliente desconectado - Total: %d', [FClients.Count]);
     end);
@@ -190,18 +196,25 @@ end;
 procedure TFormMain.OnClientData(Socket: TSocket; Command: Byte; const Data: TBytes);
 var
   Client: TClientData;
+  SocketCopy: TSocket;
+  CommandCopy: Byte;
+  DataCopy: TBytes;
 begin
-  TThread.Synchronize(nil,
+  SocketCopy := Socket;
+  CommandCopy := Command;
+  DataCopy := Copy(Data);
+
+  TThread.Queue(nil,
     procedure
     begin
-      Client := FindClient(Socket);
+      Client := FindClient(SocketCopy);
       if not Assigned(Client) then
         Exit;
 
-      case Command of
+      case CommandCopy of
         CMD_CLIENT_INFO:
         begin
-          Client.Info := BytesToClientInfo(Data);
+          Client.Info := BytesToClientInfo(DataCopy);
           UpdateClientList;
         end;
 

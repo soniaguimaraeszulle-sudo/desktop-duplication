@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
-  ClientConnection, Protocol, SystemInfo;
+  Vcl.ComCtrls, ClientConnection, Protocol, SystemInfo;
 
 type
   TFormClientMain = class(TForm)
@@ -97,7 +97,7 @@ end;
 
 procedure TFormClientMain.OnConnected;
 begin
-  TThread.Synchronize(nil,
+  TThread.Queue(nil,
     procedure
     begin
       btnConnect.Enabled := False;
@@ -113,7 +113,7 @@ end;
 
 procedure TFormClientMain.OnDisconnected;
 begin
-  TThread.Synchronize(nil,
+  TThread.Queue(nil,
     procedure
     begin
       btnConnect.Enabled := True;
@@ -131,7 +131,7 @@ begin
     begin
       // Responder ao ping
       FClient.SendPong;
-      TThread.Synchronize(nil,
+      TThread.Queue(nil,
         procedure
         begin
           Log('Ping recebido');
@@ -141,7 +141,7 @@ begin
     CMD_SCREEN_START:
     begin
       FClient.StartScreenCapture;
-      TThread.Synchronize(nil,
+      TThread.Queue(nil,
         procedure
         begin
           Log('Captura de tela iniciada');
@@ -151,7 +151,7 @@ begin
     CMD_SCREEN_STOP:
     begin
       FClient.StopScreenCapture;
-      TThread.Synchronize(nil,
+      TThread.Queue(nil,
         procedure
         begin
           Log('Captura de tela parada');
@@ -176,7 +176,7 @@ begin
     CMD_LOCK_SCREEN:
     begin
       FClient.LockWorkStation;
-      TThread.Synchronize(nil,
+      TThread.Queue(nil,
         procedure
         begin
           Log('Tela travada');
@@ -186,7 +186,7 @@ begin
     CMD_UNLOCK_SCREEN:
     begin
       // Não é possível destravar programaticamente
-      TThread.Synchronize(nil,
+      TThread.Queue(nil,
         procedure
         begin
           Log('Comando de destravamento recebido');
@@ -211,15 +211,18 @@ begin
   Packet := CreatePacket(CMD_CLIENT_INFO, Data);
   FClient.SendData(Packet);
 
-  TThread.Synchronize(nil,
+  TThread.Queue(nil,
     procedure
+    var
+      InfoCopy: TClientInfo;
     begin
+      InfoCopy := Info;
       Log('Informações enviadas ao servidor');
-      Log('  Computador: ' + Info.ComputerName);
-      Log('  IP: ' + Info.IPAddress);
-      Log('  MAC: ' + Info.MACAddress);
-      Log('  Antivírus: ' + Info.AntiVirus);
-      Log('  SO: ' + Info.OSVersion);
+      Log('  Computador: ' + InfoCopy.ComputerName);
+      Log('  IP: ' + InfoCopy.IPAddress);
+      Log('  MAC: ' + InfoCopy.MACAddress);
+      Log('  Antivírus: ' + InfoCopy.AntiVirus);
+      Log('  SO: ' + InfoCopy.OSVersion);
     end);
 end;
 
