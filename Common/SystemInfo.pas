@@ -6,6 +6,48 @@ uses
   Winapi.Windows, Winapi.IpHlpApi, Winapi.IpTypes, System.SysUtils, System.Classes,
   System.Win.Registry, Winapi.ActiveX, System.Win.ComObj, Winapi.Winsock;
 
+const
+  MAX_ADAPTER_NAME_LENGTH = 256;
+  MAX_ADAPTER_DESCRIPTION_LENGTH = 128;
+  MAX_ADAPTER_ADDRESS_LENGTH = 8;
+
+type
+  IP_ADDRESS_STRING = record
+    S: array[0..15] of AnsiChar;
+  end;
+  PIP_ADDRESS_STRING = ^IP_ADDRESS_STRING;
+
+  IP_ADDR_STRING = record
+    Next: PIP_ADDR_STRING;
+    IpAddress: IP_ADDRESS_STRING;
+    IpMask: IP_ADDRESS_STRING;
+    Context: DWORD;
+  end;
+  PIP_ADDR_STRING = ^IP_ADDR_STRING;
+
+  IP_ADAPTER_INFO = record
+    Next: PIP_ADAPTER_INFO;
+    ComboIndex: DWORD;
+    AdapterName: array[0..MAX_ADAPTER_NAME_LENGTH + 3] of AnsiChar;
+    Description: array[0..MAX_ADAPTER_DESCRIPTION_LENGTH + 3] of AnsiChar;
+    AddressLength: UINT;
+    Address: array[0..MAX_ADAPTER_ADDRESS_LENGTH - 1] of Byte;
+    Index: DWORD;
+    Type_: UINT;
+    DhcpEnabled: UINT;
+    CurrentIpAddress: PIP_ADDR_STRING;
+    IpAddressList: IP_ADDR_STRING;
+    GatewayList: IP_ADDR_STRING;
+    DhcpServer: IP_ADDR_STRING;
+    HaveWins: BOOL;
+    PrimaryWinsServer: IP_ADDR_STRING;
+    SecondaryWinsServer: IP_ADDR_STRING;
+    LeaseObtained: Int64;
+    LeaseExpires: Int64;
+  end;
+  PIP_ADAPTER_INFO = ^IP_ADAPTER_INFO;
+  TIP_ADAPTER_INFO = IP_ADAPTER_INFO;
+
 function GetComputerName: string;
 function GetLocalIPAddress: string;
 function GetMACAddress: string;
