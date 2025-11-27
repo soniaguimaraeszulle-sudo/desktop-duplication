@@ -53,6 +53,17 @@ desktop-duplication/
     └── ClientConnection.pas    # Conexão e comandos
 ```
 
+## ⚠️ Correções Aplicadas
+
+**IMPORTANTE**: Este código já foi corrigido para compilar corretamente no Delphi 12.3.
+
+As seguintes correções foram aplicadas:
+- ✅ Tipos de string em Protocol.pas (Unicode strings com UTF-8 encoding)
+- ✅ Import de Winapi.Winsock em MainForm.pas
+- ✅ Construtor de TZCompressionStream atualizado para Delphi 12.3
+
+Ver `BUILD_FIX.md` para detalhes completos das correções.
+
 ## Requisitos
 
 - **Delphi 12.3** (Athens)

@@ -27,11 +27,11 @@ type
   end;
 
   TClientInfo = record
-    ComputerName: string[255];
-    IPAddress: string[15];
-    MACAddress: string[17];
-    AntiVirus: string[255];
-    OSVersion: string[255];
+    ComputerName: string;
+    IPAddress: string;
+    MACAddress: string;
+    AntiVirus: string;
+    OSVersion: string;
   end;
 
   TMouseCommand = packed record
@@ -92,38 +92,44 @@ function ClientInfoToBytes(const Info: TClientInfo): TBytes;
 var
   Stream: TMemoryStream;
   Len: Integer;
+  Bytes: TBytes;
 begin
   Stream := TMemoryStream.Create;
   try
     // ComputerName
-    Len := Length(Info.ComputerName);
+    Bytes := TEncoding.UTF8.GetBytes(Info.ComputerName);
+    Len := Length(Bytes);
     Stream.Write(Len, SizeOf(Integer));
     if Len > 0 then
-      Stream.Write(Info.ComputerName[1], Len);
+      Stream.Write(Bytes[0], Len);
 
     // IPAddress
-    Len := Length(Info.IPAddress);
+    Bytes := TEncoding.UTF8.GetBytes(Info.IPAddress);
+    Len := Length(Bytes);
     Stream.Write(Len, SizeOf(Integer));
     if Len > 0 then
-      Stream.Write(Info.IPAddress[1], Len);
+      Stream.Write(Bytes[0], Len);
 
     // MACAddress
-    Len := Length(Info.MACAddress);
+    Bytes := TEncoding.UTF8.GetBytes(Info.MACAddress);
+    Len := Length(Bytes);
     Stream.Write(Len, SizeOf(Integer));
     if Len > 0 then
-      Stream.Write(Info.MACAddress[1], Len);
+      Stream.Write(Bytes[0], Len);
 
     // AntiVirus
-    Len := Length(Info.AntiVirus);
+    Bytes := TEncoding.UTF8.GetBytes(Info.AntiVirus);
+    Len := Length(Bytes);
     Stream.Write(Len, SizeOf(Integer));
     if Len > 0 then
-      Stream.Write(Info.AntiVirus[1], Len);
+      Stream.Write(Bytes[0], Len);
 
     // OSVersion
-    Len := Length(Info.OSVersion);
+    Bytes := TEncoding.UTF8.GetBytes(Info.OSVersion);
+    Len := Length(Bytes);
     Stream.Write(Len, SizeOf(Integer));
     if Len > 0 then
-      Stream.Write(Info.OSVersion[1], Len);
+      Stream.Write(Bytes[0], Len);
 
     SetLength(Result, Stream.Size);
     Stream.Position := 0;
@@ -137,8 +143,14 @@ function BytesToClientInfo(const Data: TBytes): TClientInfo;
 var
   Stream: TMemoryStream;
   Len: Integer;
-  Buffer: array[0..255] of AnsiChar;
+  Bytes: TBytes;
 begin
+  Result.ComputerName := '';
+  Result.IPAddress := '';
+  Result.MACAddress := '';
+  Result.AntiVirus := '';
+  Result.OSVersion := '';
+
   Stream := TMemoryStream.Create;
   try
     Stream.Write(Data[0], Length(Data));
@@ -148,40 +160,45 @@ begin
     Stream.Read(Len, SizeOf(Integer));
     if Len > 0 then
     begin
-      Stream.Read(Buffer[0], Len);
-      Result.ComputerName := Copy(string(Buffer), 1, Len);
+      SetLength(Bytes, Len);
+      Stream.Read(Bytes[0], Len);
+      Result.ComputerName := TEncoding.UTF8.GetString(Bytes);
     end;
 
     // IPAddress
     Stream.Read(Len, SizeOf(Integer));
     if Len > 0 then
     begin
-      Stream.Read(Buffer[0], Len);
-      Result.IPAddress := Copy(string(Buffer), 1, Len);
+      SetLength(Bytes, Len);
+      Stream.Read(Bytes[0], Len);
+      Result.IPAddress := TEncoding.UTF8.GetString(Bytes);
     end;
 
     // MACAddress
     Stream.Read(Len, SizeOf(Integer));
     if Len > 0 then
     begin
-      Stream.Read(Buffer[0], Len);
-      Result.MACAddress := Copy(string(Buffer), 1, Len);
+      SetLength(Bytes, Len);
+      Stream.Read(Bytes[0], Len);
+      Result.MACAddress := TEncoding.UTF8.GetString(Bytes);
     end;
 
     // AntiVirus
     Stream.Read(Len, SizeOf(Integer));
     if Len > 0 then
     begin
-      Stream.Read(Buffer[0], Len);
-      Result.AntiVirus := Copy(string(Buffer), 1, Len);
+      SetLength(Bytes, Len);
+      Stream.Read(Bytes[0], Len);
+      Result.AntiVirus := TEncoding.UTF8.GetString(Bytes);
     end;
 
     // OSVersion
     Stream.Read(Len, SizeOf(Integer));
     if Len > 0 then
     begin
-      Stream.Read(Buffer[0], Len);
-      Result.OSVersion := Copy(string(Buffer), 1, Len);
+      SetLength(Bytes, Len);
+      Stream.Read(Bytes[0], Len);
+      Result.OSVersion := TEncoding.UTF8.GetString(Bytes);
     end;
   finally
     Stream.Free;

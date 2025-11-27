@@ -28,7 +28,7 @@ begin
     InputStream.Write(Data[0], Length(Data));
     InputStream.Position := 0;
 
-    Compressor := TZCompressionStream.Create(OutputStream, zcDefault);
+    Compressor := TZCompressionStream.Create(OutputStream);
     try
       Compressor.CopyFrom(InputStream, InputStream.Size);
     finally
