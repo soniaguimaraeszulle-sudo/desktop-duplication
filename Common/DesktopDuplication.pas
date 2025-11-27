@@ -7,7 +7,6 @@ uses
   System.SysUtils, System.Classes, Vcl.Graphics, Vcl.Imaging.jpeg, Winapi.ActiveX;
 
 const
-  D3D_DRIVER_TYPE_HARDWARE = 1;
   D3D11_SDK_VERSION = 7;
 
   // DXGI Error Codes
@@ -15,6 +14,26 @@ const
   DXGI_ERROR_ACCESS_LOST = HRESULT($887A0026);
 
 type
+  // D3D11 Types
+  D3D_DRIVER_TYPE = (
+    D3D_DRIVER_TYPE_UNKNOWN = 0,
+    D3D_DRIVER_TYPE_HARDWARE = 1,
+    D3D_DRIVER_TYPE_REFERENCE = 2,
+    D3D_DRIVER_TYPE_NULL = 3,
+    D3D_DRIVER_TYPE_SOFTWARE = 4,
+    D3D_DRIVER_TYPE_WARP = 5
+  );
+
+  D3D_FEATURE_LEVEL = (
+    D3D_FEATURE_LEVEL_9_1 = $9100,
+    D3D_FEATURE_LEVEL_9_2 = $9200,
+    D3D_FEATURE_LEVEL_9_3 = $9300,
+    D3D_FEATURE_LEVEL_10_0 = $a000,
+    D3D_FEATURE_LEVEL_10_1 = $a100,
+    D3D_FEATURE_LEVEL_11_0 = $b000,
+    D3D_FEATURE_LEVEL_11_1 = $b100
+  );
+
   // Forward declarations for DXGI 1.2+
   IDXGIOutput1 = interface;
   IDXGIOutputDuplication = interface;
@@ -144,7 +163,7 @@ begin
 
   try
     // Create D3D11 Device
-    DriverType := D3D_DRIVER_TYPE(D3D_DRIVER_TYPE_HARDWARE);
+    DriverType := D3D_DRIVER_TYPE_HARDWARE;
     hr := D3D11CreateDevice(
       nil,
       DriverType,
@@ -153,9 +172,9 @@ begin
       nil,
       0,
       D3D11_SDK_VERSION,
-      FDevice,
-      FeatureLevel,
-      FDeviceContext
+      @FDevice,
+      @FeatureLevel,
+      @FDeviceContext
     );
 
     if Failed(hr) then
@@ -253,7 +272,7 @@ begin
       TextureDesc.CPUAccessFlags := Ord(D3D11_CPU_ACCESS_READ);
       TextureDesc.MiscFlags := 0;
 
-      hr := FDevice.CreateTexture2D(TextureDesc, nil, StagingTexture);
+      hr := FDevice.CreateTexture2D(@TextureDesc, nil, @StagingTexture);
       if Failed(hr) then
         Exit;
 
