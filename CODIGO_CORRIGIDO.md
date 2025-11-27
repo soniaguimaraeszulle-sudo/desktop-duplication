@@ -318,55 +318,42 @@ hr := FDevice.CreateTexture2D(TextureDesc, nil, StagingTexture); // Sem @
 
 ## ✅ Rodada 5: Correção SystemInfo.pas
 
-### 9. SystemInfo.pas - TIP_ADAPTER_INFO não declarado
+### 9. SystemInfo.pas - Conflito de Tipos IP_ADAPTER_INFO
 
-**Problema:** O tipo TIP_ADAPTER_INFO não está disponível em Winapi.IpTypes no Delphi 12.3.
+**Problema:** Conflito de tipos - tentei declarar estruturas que já existem em Winapi.IpTypes.
 
-**Erro:**
+**Erros encontrados:**
 - E2003: Undeclared identifier: 'TIP_ADAPTER_INFO' (linha 69)
+- E2010: Incompatible types: 'Winapi.IpTypes.PIP_ADAPTER_INFO' and 'SystemInfo.PIP_ADAPTER_INFO' (linhas 114, 118)
 
-**Solução:**
+**Causa Raiz:**
+Mesmo erro que aconteceu com D3D_DRIVER_TYPE! Tentei declarar `IP_ADAPTER_INFO` manualmente, mas ele **já existe** em `Winapi.IpTypes`. O código estava usando `TIP_ADAPTER_INFO` (com T prefixo), mas o tipo correto do sistema é `IP_ADAPTER_INFO` (sem T).
 
-Adicionadas declarações manuais completas das estruturas necessárias:
+**Solução Final:**
 
+**a) Remover todas as declarações customizadas:**
 ```pascal
-type
-  IP_ADDRESS_STRING = record
-    S: array[0..15] of AnsiChar;
-  end;
-
-  IP_ADDR_STRING = record
-    Next: PIP_ADDR_STRING;
-    IpAddress: IP_ADDRESS_STRING;
-    IpMask: IP_ADDRESS_STRING;
-    Context: DWORD;
-  end;
-
-  IP_ADAPTER_INFO = record
-    Next: PIP_ADAPTER_INFO;
-    ComboIndex: DWORD;
-    AdapterName: array[0..MAX_ADAPTER_NAME_LENGTH + 3] of AnsiChar;
-    Description: array[0..MAX_ADAPTER_DESCRIPTION_LENGTH + 3] of AnsiChar;
-    AddressLength: UINT;
-    Address: array[0..MAX_ADAPTER_ADDRESS_LENGTH - 1] of Byte;
-    Index: DWORD;
-    Type_: UINT;
-    DhcpEnabled: UINT;
-    CurrentIpAddress: PIP_ADDR_STRING;
-    IpAddressList: IP_ADDR_STRING;
-    GatewayList: IP_ADDR_STRING;
-    DhcpServer: IP_ADDR_STRING;
-    HaveWins: BOOL;
-    PrimaryWinsServer: IP_ADDR_STRING;
-    SecondaryWinsServer: IP_ADDR_STRING;
-    LeaseObtained: Int64;
-    LeaseExpires: Int64;
-  end;
-  PIP_ADAPTER_INFO = ^IP_ADAPTER_INFO;
-  TIP_ADAPTER_INFO = IP_ADAPTER_INFO;
+// REMOVIDO: type IP_ADDRESS_STRING, IP_ADDR_STRING, IP_ADAPTER_INFO
+// Agora usando os tipos de Winapi.IpTypes
 ```
 
-**Impacto:** ✅ Função GetMACAddress() agora funciona corretamente!
+**b) Corrigir uso do tipo:**
+```pascal
+// ANTES (ERRADO)
+BufLen := SizeOf(TIP_ADAPTER_INFO);
+
+// DEPOIS (CORRETO)
+BufLen := SizeOf(IP_ADAPTER_INFO); // Sem o T
+```
+
+**Tipos corretos disponíveis em Winapi.IpTypes:**
+- `IP_ADAPTER_INFO` - estrutura
+- `PIP_ADAPTER_INFO` - ponteiro
+- ❌ `TIP_ADAPTER_INFO` - NÃO EXISTE!
+
+**Lição aprendida:** Sempre verificar se tipos Windows API já existem nas units do sistema antes de declarar manualmente. Este é o segundo caso igual (D3D e agora IP_ADAPTER_INFO).
+
+**Impacto:** ✅ Função GetMACAddress() agora usa tipos corretos da Windows API!
 
 ---
 

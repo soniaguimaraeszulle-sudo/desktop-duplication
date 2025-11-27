@@ -361,42 +361,34 @@ hr := FDevice.CreateTexture2D(TextureDesc, nil, StagingTexture); // Sem @
 
 ## CORREÇÃO ADICIONAL - SystemInfo.pas
 
-### 9. SystemInfo.pas - TIP_ADAPTER_INFO não declarado
+### 9. SystemInfo.pas - TIP_ADAPTER_INFO vs IP_ADAPTER_INFO
 
-**Problema:** `E2003 Undeclared identifier: 'TIP_ADAPTER_INFO'`
+**Problema:** Conflito de tipos entre declarações customizadas e tipos do sistema.
 
-**Causa:** O tipo `TIP_ADAPTER_INFO` não está disponível em `Winapi.IpTypes` no Delphi 12.3.
+**Erros iniciais:**
+- `E2003 Undeclared identifier: 'TIP_ADAPTER_INFO'` (linha 69)
+- `E2010 Incompatible types: 'Winapi.IpTypes.PIP_ADAPTER_INFO' and 'SystemInfo.PIP_ADAPTER_INFO'` (linhas 114, 118)
 
-**Solução:**
-Adicionadas declarações manuais das estruturas IP_ADAPTER_INFO:
+**Causa:** Tentei declarar `IP_ADAPTER_INFO` manualmente, mas ele já existe em `Winapi.IpTypes`. O código estava usando `TIP_ADAPTER_INFO` (com T), que não existe.
+
+**Solução Correta:**
+- REMOVIDO: Todas as declarações customizadas de IP_ADAPTER_INFO
+- ALTERADO: `SizeOf(TIP_ADAPTER_INFO)` → `SizeOf(IP_ADAPTER_INFO)`
+- Agora usa os tipos oficiais de `Winapi.IpTypes`:
+  - `IP_ADAPTER_INFO` (tipo da estrutura)
+  - `PIP_ADAPTER_INFO` (ponteiro)
 
 ```pascal
-type
-  IP_ADDRESS_STRING = record
-    S: array[0..15] of AnsiChar;
-  end;
+// ANTES (ERRADO)
+BufLen := SizeOf(TIP_ADAPTER_INFO);
 
-  IP_ADDR_STRING = record
-    Next: PIP_ADDR_STRING;
-    IpAddress: IP_ADDRESS_STRING;
-    IpMask: IP_ADDRESS_STRING;
-    Context: DWORD;
-  end;
-
-  IP_ADAPTER_INFO = record
-    Next: PIP_ADAPTER_INFO;
-    ComboIndex: DWORD;
-    AdapterName: array[0..MAX_ADAPTER_NAME_LENGTH + 3] of AnsiChar;
-    Description: array[0..MAX_ADAPTER_DESCRIPTION_LENGTH + 3] of AnsiChar;
-    AddressLength: UINT;
-    Address: array[0..MAX_ADAPTER_ADDRESS_LENGTH - 1] of Byte;
-    // ... outros campos
-  end;
-  PIP_ADAPTER_INFO = ^IP_ADAPTER_INFO;
-  TIP_ADAPTER_INFO = IP_ADAPTER_INFO;
+// DEPOIS (CORRETO)
+BufLen := SizeOf(IP_ADAPTER_INFO);
 ```
 
-**Impacto:** Função GetMACAddress() agora compila corretamente!
+**Lição aprendida:** Mesmo padrão do D3D_DRIVER_TYPE - sempre verificar se o tipo já existe nas units do sistema antes de declarar manualmente!
+
+**Impacto:** Função GetMACAddress() agora usa tipos corretos do Windows API!
 
 ---
 
