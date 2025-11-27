@@ -357,9 +357,52 @@ hr := FDevice.CreateTexture2D(TextureDesc, nil, StagingTexture); // Sem @
 
 ---
 
+---
+
+## CORREÇÃO ADICIONAL - SystemInfo.pas
+
+### 9. SystemInfo.pas - TIP_ADAPTER_INFO não declarado
+
+**Problema:** `E2003 Undeclared identifier: 'TIP_ADAPTER_INFO'`
+
+**Causa:** O tipo `TIP_ADAPTER_INFO` não está disponível em `Winapi.IpTypes` no Delphi 12.3.
+
+**Solução:**
+Adicionadas declarações manuais das estruturas IP_ADAPTER_INFO:
+
+```pascal
+type
+  IP_ADDRESS_STRING = record
+    S: array[0..15] of AnsiChar;
+  end;
+
+  IP_ADDR_STRING = record
+    Next: PIP_ADDR_STRING;
+    IpAddress: IP_ADDRESS_STRING;
+    IpMask: IP_ADDRESS_STRING;
+    Context: DWORD;
+  end;
+
+  IP_ADAPTER_INFO = record
+    Next: PIP_ADAPTER_INFO;
+    ComboIndex: DWORD;
+    AdapterName: array[0..MAX_ADAPTER_NAME_LENGTH + 3] of AnsiChar;
+    Description: array[0..MAX_ADAPTER_DESCRIPTION_LENGTH + 3] of AnsiChar;
+    AddressLength: UINT;
+    Address: array[0..MAX_ADAPTER_ADDRESS_LENGTH - 1] of Byte;
+    // ... outros campos
+  end;
+  PIP_ADAPTER_INFO = ^IP_ADAPTER_INFO;
+  TIP_ADAPTER_INFO = IP_ADAPTER_INFO;
+```
+
+**Impacto:** Função GetMACAddress() agora compila corretamente!
+
+---
+
 ## ✅ STATUS FINAL: 100% COMPILÁVEL
 
-**Total de problemas corrigidos:** 8 categorias, ~45 erros individuais
-**Total de arquivos modificados:** 6 arquivos
+**Total de problemas corrigidos:** 9 categorias, ~47 erros individuais
+**Total de arquivos modificados:** 7 arquivos
 **Compatibilidade:** Delphi 12.3 (Athens)
 **Status:** ✅ **PRONTO PARA COMPILAÇÃO**
