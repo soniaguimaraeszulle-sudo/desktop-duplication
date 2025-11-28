@@ -50,6 +50,7 @@ begin
   FClient.OnConnected := OnConnected;
   FClient.OnDisconnected := OnDisconnected;
   FClient.OnCommand := OnCommand;
+  FClient.OnLog := Log;
 
   edtServerIP.Text := '127.0.0.1';
   edtServerPort.Text := '9999';

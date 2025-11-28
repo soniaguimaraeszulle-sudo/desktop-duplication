@@ -10,6 +10,7 @@ type
   TConnectedEvent = procedure of object;
   TDisconnectedEvent = procedure of object;
   TCommandEvent = procedure(Command: Byte; const Data: TBytes) of object;
+  TLogEvent = procedure(const Msg: string) of object;
 
   TClientConnection = class
   private
@@ -23,9 +24,11 @@ type
     FOnConnected: TConnectedEvent;
     FOnDisconnected: TDisconnectedEvent;
     FOnCommand: TCommandEvent;
+    FOnLog: TLogEvent;
     procedure ReceiveData;
     procedure CaptureAndSendScreen;
     function CaptureScreenGDIFromMonitor(Quality: Integer; MonitorIndex: Integer): TBytes;
+    procedure DoLog(const Msg: string);
   public
     constructor Create;
     destructor Destroy; override;
@@ -43,6 +46,7 @@ type
     property OnConnected: TConnectedEvent read FOnConnected write FOnConnected;
     property OnDisconnected: TDisconnectedEvent read FOnDisconnected write FOnDisconnected;
     property OnCommand: TCommandEvent read FOnCommand write FOnCommand;
+    property OnLog: TLogEvent read FOnLog write FOnLog;
   end;
 
 implementation
@@ -318,11 +322,15 @@ var
   UseGDI: Boolean;
   FailCount: Integer;
   FirstCapture: Boolean;
+  FrameCount: Integer;
 begin
   // SEMPRE começar com GDI para garantir que funciona
   UseGDI := True;
   FailCount := 0;
   FirstCapture := True;
+  FrameCount := 0;
+
+  DoLog('Thread de captura iniciada (Monitor ' + IntToStr(FMonitorIndex + 1) + ')');
 
   while FCapturing and FConnected do
   begin
@@ -336,24 +344,33 @@ begin
         if (Length(ScreenData) > 0) and FirstCapture then
         begin
           FirstCapture := False;
-          // Primeira captura bem-sucedida com GDI
+          DoLog(Format('Primeira captura bem-sucedida! Tamanho: %.2f KB', [Length(ScreenData) / 1024]));
         end;
       except
         on E: Exception do
         begin
+          DoLog('Erro na captura GDI: ' + E.Message);
           // Se GDI falhar, tentar Desktop Duplication
           try
             ScreenData := FDuplicator.CaptureScreenToJPEG(75);
+            DoLog('Usando Desktop Duplication como fallback');
           except
-            // Se ambos falharem, continuar tentando
-            Inc(FailCount);
-            if FailCount > 10 then
+            on E2: Exception do
             begin
-              Sleep(1000);
-              FailCount := 0;
+              // Se ambos falharem, continuar tentando
+              Inc(FailCount);
+              if FailCount = 1 then
+                DoLog('Erro na captura (Desktop Duplication): ' + E2.Message);
+              if FailCount > 10 then
+              begin
+                if FailCount = 11 then
+                  DoLog('Muitas falhas na captura, aguardando...');
+                Sleep(1000);
+                FailCount := 0;
+              end;
+              Sleep(100);
+              Continue;
             end;
-            Sleep(100);
-            Continue;
           end;
         end;
       end;
@@ -368,10 +385,19 @@ begin
           Packet := CreatePacket(CMD_SCREEN_DATA, CompressedData);
           SendData(Packet);
 
+          Inc(FrameCount);
+          // Log a cada 50 frames (aproximadamente 5 segundos)
+          if FrameCount mod 50 = 0 then
+          begin
+            DoLog(Format('Frames enviados: %d (Último: %.2f KB -> %.2f KB comprimido)',
+              [FrameCount, Length(ScreenData) / 1024, Length(CompressedData) / 1024]));
+          end;
+
           FailCount := 0; // Resetar contador de falhas
         except
           on E: Exception do
           begin
+            DoLog('Erro ao comprimir/enviar: ' + E.Message);
             Inc(FailCount);
             Sleep(100);
             Continue;
@@ -381,6 +407,8 @@ begin
       else
       begin
         Inc(FailCount);
+        if FailCount = 1 then
+          DoLog('Captura retornou dados vazios');
       end;
 
       // Aguardar antes da próxima captura (aproximadamente 10 FPS)
@@ -388,11 +416,14 @@ begin
     except
       on E: Exception do
       begin
+        DoLog('Erro geral na thread de captura: ' + E.Message);
         Inc(FailCount);
         Sleep(500);
       end;
     end;
   end;
+
+  DoLog('Thread de captura finalizada');
 end;
 
 procedure TClientConnection.ProcessMouseCommand(const Data: TBytes);
@@ -474,6 +505,19 @@ begin
   FMonitorIndex := Index;
   if Assigned(FDuplicator) then
     FDuplicator.SetMonitorIndex(Index);
+end;
+
+procedure TClientConnection.DoLog(const Msg: string);
+begin
+  if Assigned(FOnLog) then
+  begin
+    TThread.Queue(nil,
+      procedure
+      begin
+        if Assigned(FOnLog) then
+          FOnLog(Msg);
+      end);
+  end;
 end;
 
 end.

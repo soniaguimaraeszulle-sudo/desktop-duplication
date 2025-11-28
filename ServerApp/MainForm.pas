@@ -263,6 +263,16 @@ begin
         begin
           Client.LastPing := Now;
           UpdateClientList;
+
+          // Log de ping (a cada 20 pings para não spammar)
+          if Random(20) = 0 then
+          begin
+            if Client.Info.ClientID <> '' then
+              ClientIdentifier := Client.Info.ClientID
+            else
+              ClientIdentifier := IntToStr(Client.ClientID);
+            Log(Format('Ping recebido de %s', [ClientIdentifier]));
+          end;
         end;
 
         CMD_SCREEN_DATA:
