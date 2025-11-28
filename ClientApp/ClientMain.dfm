@@ -18,7 +18,7 @@ object FormClientMain: TFormClientMain
     Left = 0
     Top = 0
     Width = 600
-    Height = 120
+    Height = 89
     Align = alTop
     TabOrder = 0
     object Label1: TLabel
@@ -41,13 +41,6 @@ object FormClientMain: TFormClientMain
       Width = 14
       Height = 13
       Caption = 'ID:'
-    end
-    object Label4: TLabel
-      Left = 16
-      Top = 51
-      Width = 41
-      Height = 13
-      Caption = 'Monitor:'
     end
     object edtServerIP: TEdit
       Left = 71
@@ -75,7 +68,7 @@ object FormClientMain: TFormClientMain
     end
     object btnConnect: TButton
       Left = 16
-      Top = 86
+      Top = 51
       Width = 75
       Height = 25
       Caption = 'Conectar'
@@ -84,7 +77,7 @@ object FormClientMain: TFormClientMain
     end
     object btnDisconnect: TButton
       Left = 97
-      Top = 86
+      Top = 51
       Width = 75
       Height = 25
       Caption = 'Desconectar'
@@ -94,31 +87,18 @@ object FormClientMain: TFormClientMain
     end
     object chkAutoStart: TCheckBox
       Left = 192
-      Top = 90
+      Top = 55
       Width = 97
       Height = 17
       Caption = 'Iniciar autom'#225'tico'
       TabOrder = 5
     end
-    object RadioGroup1: TRadioGroup
-      Left = 71
-      Top = 43
-      Width = 185
-      Height = 37
-      Caption = ' Monitor '
-      Columns = 2
-      ItemIndex = 0
-      Items.Strings = (
-        'Monitor 1'
-        'Monitor 2')
-      TabOrder = 6
-    end
   end
   object Memo1: TMemo
     Left = 0
-    Top = 120
+    Top = 89
     Width = 600
-    Height = 261
+    Height = 292
     Align = alClient
     ReadOnly = True
     ScrollBars = ssVertical

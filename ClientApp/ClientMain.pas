@@ -18,11 +18,9 @@ type
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
-    Label4: TLabel;
     Memo1: TMemo;
     StatusBar1: TStatusBar;
     chkAutoStart: TCheckBox;
-    RadioGroup1: TRadioGroup;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnConnectClick(Sender: TObject);
@@ -31,7 +29,6 @@ type
   private
     FClient: TClientConnection;
     FClientID: string;
-    FMonitorIndex: Integer;
     procedure OnConnected;
     procedure OnDisconnected;
     procedure OnCommand(Command: Byte; const Data: TBytes);
@@ -90,15 +87,8 @@ begin
     Exit;
   end;
 
-  // Obter índice do monitor selecionado
-  FMonitorIndex := RadioGroup1.ItemIndex;
-
   Log('Conectando ao servidor ' + ServerIP + ':' + IntToStr(ServerPort));
   Log('ID do Cliente: ' + FClientID);
-  Log('Monitor selecionado: ' + IntToStr(FMonitorIndex + 1));
-
-  // Configurar monitor no cliente antes de conectar
-  FClient.SetMonitorIndex(FMonitorIndex);
 
   if FClient.Connect(ServerIP, ServerPort) then
   begin
@@ -127,12 +117,14 @@ begin
       edtServerIP.Enabled := False;
       edtServerPort.Enabled := False;
       edtClientID.Enabled := False;
-      RadioGroup1.Enabled := False;
       StatusBar1.SimpleText := 'Conectado';
     end);
 
   // Enviar informações do cliente
   SendClientInfo;
+
+  // Iniciar captura de tela automaticamente
+  FClient.StartScreenCapture;
 end;
 
 procedure TFormClientMain.OnDisconnected;
@@ -145,7 +137,6 @@ begin
       edtServerIP.Enabled := True;
       edtServerPort.Enabled := True;
       edtClientID.Enabled := True;
-      RadioGroup1.Enabled := True;
       StatusBar1.SimpleText := 'Desconectado';
     end);
 end;
@@ -217,6 +208,22 @@ begin
         begin
           Log('Comando de destravamento recebido');
         end);
+    end;
+
+    CMD_CHANGE_MONITOR:
+    begin
+      if Length(Data) >= SizeOf(Byte) then
+      begin
+        FClient.SetMonitorIndex(Data[0]);
+        TThread.Queue(nil,
+          procedure
+          var
+            MonitorIdx: Byte;
+          begin
+            MonitorIdx := Data[0];
+            Log('Monitor alterado para: Monitor ' + IntToStr(MonitorIdx + 1));
+          end);
+      end;
     end;
   end;
 end;

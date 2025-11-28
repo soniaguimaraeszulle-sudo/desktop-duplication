@@ -18,6 +18,7 @@ const
   CMD_KEYBOARD = $09;         // Tecla
   CMD_LOCK_SCREEN = $0A;      // Travar tela
   CMD_UNLOCK_SCREEN = $0B;    // Destravar tela
+  CMD_CHANGE_MONITOR = $0C;   // Mudar monitor (0=Monitor1, 1=Monitor2)
   CMD_DISCONNECT = $FF;       // Desconectar
 
 type

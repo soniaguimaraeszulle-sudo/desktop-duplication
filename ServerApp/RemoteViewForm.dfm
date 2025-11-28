@@ -61,6 +61,23 @@ object FormRemoteView: TFormRemoteView
       TabOrder = 3
       OnClick = btnUnlockScreenClick
     end
+    object Label1: TLabel
+      Left = 468
+      Top = 21
+      Width = 41
+      Height = 13
+      Caption = 'Monitor:'
+    end
+    object ToggleSwitch1: TToggleSwitch
+      Left = 515
+      Top = 18
+      Width = 100
+      Height = 20
+      StateCaptions.CaptionOn = 'Monitor 2'
+      StateCaptions.CaptionOff = 'Monitor 1'
+      TabOrder = 4
+      OnClick = ToggleSwitch1Click
+    end
   end
   object ScrollBox1: TScrollBox
     Left = 0

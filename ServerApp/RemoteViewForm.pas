@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Vcl.ComCtrls, Vcl.Imaging.jpeg, ServerConnection, Protocol, Compression, Winapi.WinSock;
+  Vcl.ComCtrls, Vcl.Imaging.jpeg, Vcl.WinXCtrls, ServerConnection, Protocol, Compression, Winapi.WinSock;
 
 type
   TFormRemoteView = class(TForm)
@@ -18,6 +18,8 @@ type
     Timer1: TTimer;
     StatusBar1: TStatusBar;
     ScrollBox1: TScrollBox;
+    Label1: TLabel;
+    ToggleSwitch1: TToggleSwitch;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -30,6 +32,7 @@ type
     procedure Image1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure ToggleSwitch1Click(Sender: TObject);
   private
     FServer: TServerConnection;
     FClientSocket: TSocket;
@@ -37,6 +40,7 @@ type
     FViewing: Boolean;
     FLastScreenData: TBytes;
     procedure ProcessScreenData(const Data: TBytes);
+    procedure SendMonitorChangeCommand(MonitorIndex: Byte);
   public
     procedure SetClient(Server: TServerConnection; ClientSocket: TSocket; const ClientName: string);
     procedure OnDataReceived(Socket: TSocket; Command: Byte; const Data: TBytes);
@@ -271,6 +275,37 @@ begin
 
   Packet := CreatePacket(CMD_KEYBOARD, Data);
   FServer.SendData(FClientSocket, Packet);
+end;
+
+procedure TFormRemoteView.ToggleSwitch1Click(Sender: TObject);
+var
+  MonitorIndex: Byte;
+begin
+  // ToggleSwitch1.State = tssOff -> Monitor 1 (índice 0)
+  // ToggleSwitch1.State = tssOn  -> Monitor 2 (índice 1)
+  if ToggleSwitch1.State = tssOff then
+    MonitorIndex := 0  // Monitor 1
+  else
+    MonitorIndex := 1; // Monitor 2
+
+  SendMonitorChangeCommand(MonitorIndex);
+end;
+
+procedure TFormRemoteView.SendMonitorChangeCommand(MonitorIndex: Byte);
+var
+  Data: TBytes;
+  Packet: TBytes;
+begin
+  if not Assigned(FServer) then
+    Exit;
+
+  SetLength(Data, 1);
+  Data[0] := MonitorIndex;
+
+  Packet := CreatePacket(CMD_CHANGE_MONITOR, Data);
+  FServer.SendData(FClientSocket, Packet);
+
+  StatusBar1.SimpleText := Format('Monitor alterado para: Monitor %d', [MonitorIndex + 1]);
 end;
 
 end.
