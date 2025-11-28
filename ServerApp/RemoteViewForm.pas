@@ -8,6 +8,8 @@ uses
   Vcl.ComCtrls, Vcl.Imaging.jpeg, Vcl.WinXCtrls, ServerConnection, Protocol, Compression, Winapi.WinSock;
 
 type
+  TFormRemoteViewCloseEvent = procedure(ClientSocket: TSocket) of object;
+
   TFormRemoteView = class(TForm)
     Image1: TImage;
     Panel1: TPanel;
@@ -39,11 +41,13 @@ type
     FClientName: string;
     FViewing: Boolean;
     FLastScreenData: TBytes;
+    FOnFormClose: TFormRemoteViewCloseEvent;
     procedure ProcessScreenData(const Data: TBytes);
     procedure SendMonitorChangeCommand(MonitorIndex: Byte);
   public
     procedure SetClient(Server: TServerConnection; ClientSocket: TSocket; const ClientName: string);
     procedure OnDataReceived(Socket: TSocket; Command: Byte; const Data: TBytes);
+    property OnFormClose: TFormRemoteViewCloseEvent read FOnFormClose write FOnFormClose;
   end;
 
 var
@@ -72,6 +76,9 @@ end;
 
 procedure TFormRemoteView.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+  if Assigned(FOnFormClose) then
+    FOnFormClose(FClientSocket);
+
   Action := caFree;
 end;
 

@@ -8,12 +8,15 @@ uses
   Vcl.ComCtrls, Vcl.ExtCtrls, ServerConnection, Protocol, System.Generics.Collections;
 
 type
+  TFormRemoteView = class;  // Forward declaration
+
   TClientData = class
     ClientID: Integer;
     Socket: TSocket;
     Info: TClientInfo;
     LastPing: TDateTime;
     Active: Boolean;
+    RemoteForm: TFormRemoteView;  // Referência ao formulário remoto
   end;
 
   TFormMain = class(TForm)
@@ -193,17 +196,27 @@ var
   SocketCopy: TSocket;
   Client: TClientData;
   ClientInfo: string;
+  RemoteFormToClose: TFormRemoteView;
 begin
   SocketCopy := Socket;
 
   // Obter informações do cliente antes de remover
   Client := FindClient(SocketCopy);
+  RemoteFormToClose := nil;
+
   if Assigned(Client) then
   begin
     if Client.Info.ClientID <> '' then
       ClientInfo := Format('[%s - %s]', [Client.Info.ClientID, Client.Info.ComputerName])
     else
       ClientInfo := Format('[ID: %d]', [Client.ClientID]);
+
+    // Se há um RemoteForm aberto, precisamos fechá-lo
+    if Assigned(Client.RemoteForm) then
+    begin
+      RemoteFormToClose := Client.RemoteForm;
+      Client.RemoteForm := nil;
+    end;
   end
   else
     ClientInfo := Format('[Socket: %d]', [SocketCopy]);
@@ -214,6 +227,13 @@ begin
       InfoCopy: string;
     begin
       InfoCopy := ClientInfo;
+
+      // Fechar RemoteForm se estava aberto
+      if Assigned(RemoteFormToClose) then
+      begin
+        RemoteFormToClose.Close;
+      end;
+
       RemoveClient(SocketCopy);
       UpdateClientList;
       StatusBar1.SimpleText := Format('Cliente desconectado - Total: %d', [FClients.Count]);
@@ -277,6 +297,12 @@ begin
 
         CMD_SCREEN_DATA:
         begin
+          // Encaminhar dados para o RemoteViewForm se estiver aberto
+          if Assigned(Client.RemoteForm) then
+          begin
+            Client.RemoteForm.OnDataReceived(SocketCopy, CommandCopy, DataCopy);
+          end;
+
           // Log de recebimento de frame (apenas de vez em quando para não encher o log)
           if Random(100) < 5 then  // 5% das vezes
           begin
@@ -425,8 +451,25 @@ begin
   if not Assigned(Client) then
     Exit;
 
+  // Se já existe um RemoteForm aberto para este cliente, focar nele
+  if Assigned(Client.RemoteForm) then
+  begin
+    Client.RemoteForm.BringToFront;
+    Exit;
+  end;
+
   RemoteForm := TFormRemoteView.Create(Self);
   RemoteForm.SetClient(FServer, Client.Socket, Client.Info.ComputerName);
+
+  // Associar o formulário ao cliente
+  Client.RemoteForm := RemoteForm;
+
+  // Quando o formulário for fechado, limpar a referência
+  RemoteForm.OnFormClose := procedure(ClientSocket: TSocket)
+    begin
+      Client.RemoteForm := nil;
+    end;
+
   RemoteForm.Show;
 end;
 
