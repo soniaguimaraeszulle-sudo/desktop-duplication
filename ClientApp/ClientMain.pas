@@ -124,6 +124,11 @@ begin
   SendClientInfo;
 
   // Iniciar captura de tela automaticamente
+  TThread.Queue(nil,
+    procedure
+    begin
+      Log('Iniciando captura de tela automática...');
+    end);
   FClient.StartScreenCapture;
 end;
 

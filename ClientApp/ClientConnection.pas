@@ -19,11 +19,13 @@ type
     FScreenCaptureThread: TThread;
     FCapturing: Boolean;
     FDuplicator: TDesktopDuplicator;
+    FMonitorIndex: Integer;
     FOnConnected: TConnectedEvent;
     FOnDisconnected: TDisconnectedEvent;
     FOnCommand: TCommandEvent;
     procedure ReceiveData;
     procedure CaptureAndSendScreen;
+    function CaptureScreenGDIFromMonitor(Quality: Integer; MonitorIndex: Integer): TBytes;
   public
     constructor Create;
     destructor Destroy; override;
@@ -56,6 +58,7 @@ begin
   FConnected := False;
   FCapturing := False;
   FSocket := INVALID_SOCKET;
+  FMonitorIndex := 0; // Monitor 1 por padrão
   FDuplicator := TDesktopDuplicator.Create;
 end;
 
@@ -190,6 +193,7 @@ begin
 
   FCapturing := True;
   FScreenCaptureThread := TThread.CreateAnonymousThread(CaptureAndSendScreen);
+  FScreenCaptureThread.FreeOnTerminate := False;
   FScreenCaptureThread.Start;
 end;
 
@@ -247,6 +251,65 @@ begin
   end;
 end;
 
+function TClientConnection.CaptureScreenGDIFromMonitor(Quality: Integer; MonitorIndex: Integer): TBytes;
+var
+  ScreenDC: HDC;
+  Bitmap: TBitmap;
+  JPEGImage: TJPEGImage;
+  Stream: TMemoryStream;
+  MonitorLeft, MonitorTop, MonitorWidth, MonitorHeight: Integer;
+begin
+  SetLength(Result, 0);
+
+  // Para simplificar, usar GetSystemMetrics para monitor virtual
+  // Monitor 0 = primário, Monitor 1 = secundário (assumindo arranjo horizontal)
+  if MonitorIndex = 0 then
+  begin
+    // Monitor primário
+    MonitorLeft := 0;
+    MonitorTop := 0;
+    MonitorWidth := GetSystemMetrics(SM_CXSCREEN);
+    MonitorHeight := GetSystemMetrics(SM_CYSCREEN);
+  end
+  else
+  begin
+    // Monitor secundário (assumindo à direita do primário)
+    MonitorLeft := GetSystemMetrics(SM_CXSCREEN);
+    MonitorTop := 0;
+    MonitorWidth := GetSystemMetrics(SM_CXSCREEN);
+    MonitorHeight := GetSystemMetrics(SM_CYSCREEN);
+  end;
+
+  Bitmap := TBitmap.Create;
+  JPEGImage := TJPEGImage.Create;
+  Stream := TMemoryStream.Create;
+  try
+    Bitmap.PixelFormat := pf24bit;
+    Bitmap.Width := MonitorWidth;
+    Bitmap.Height := MonitorHeight;
+
+    ScreenDC := GetDC(0);
+    try
+      BitBlt(Bitmap.Canvas.Handle, 0, 0, MonitorWidth, MonitorHeight,
+             ScreenDC, MonitorLeft, MonitorTop, SRCCOPY);
+    finally
+      ReleaseDC(0, ScreenDC);
+    end;
+
+    JPEGImage.Assign(Bitmap);
+    JPEGImage.CompressionQuality := Quality;
+    JPEGImage.SaveToStream(Stream);
+
+    SetLength(Result, Stream.Size);
+    Stream.Position := 0;
+    Stream.Read(Result[0], Stream.Size);
+  finally
+    Stream.Free;
+    JPEGImage.Free;
+    Bitmap.Free;
+  end;
+end;
+
 procedure TClientConnection.CaptureAndSendScreen;
 var
   ScreenData: TBytes;
@@ -254,43 +317,38 @@ var
   Packet: TBytes;
   UseGDI: Boolean;
   FailCount: Integer;
+  FirstCapture: Boolean;
 begin
-  UseGDI := False; // Tentar Desktop Duplication primeiro
+  // SEMPRE começar com GDI para garantir que funciona
+  UseGDI := True;
   FailCount := 0;
+  FirstCapture := True;
 
   while FCapturing and FConnected do
   begin
     try
       SetLength(ScreenData, 0);
 
-      if not UseGDI then
-      begin
-        // Tentar Desktop Duplication API
-        try
-          ScreenData := FDuplicator.CaptureScreenToJPEG(75);
-        except
-          // Se falhar, não fazer nada e continuar para GDI
-        end;
+      // Sempre tentar GDI primeiro (mais confiável)
+      try
+        ScreenData := CaptureScreenGDIFromMonitor(75, FMonitorIndex);
 
-        if Length(ScreenData) = 0 then
+        if (Length(ScreenData) > 0) and FirstCapture then
         begin
-          // Falhou, mudar para GDI
-          UseGDI := True;
+          FirstCapture := False;
+          // Primeira captura bem-sucedida com GDI
         end;
-      end;
-
-      if UseGDI or (Length(ScreenData) = 0) then
-      begin
-        // Usar GDI como fallback (funciona sem admin)
-        try
-          ScreenData := CaptureScreenGDI(75);
-        except
-          on E: Exception do
-          begin
+      except
+        on E: Exception do
+        begin
+          // Se GDI falhar, tentar Desktop Duplication
+          try
+            ScreenData := FDuplicator.CaptureScreenToJPEG(75);
+          except
+            // Se ambos falharem, continuar tentando
             Inc(FailCount);
             if FailCount > 10 then
             begin
-              // Muitas falhas, aguardar mais tempo
               Sleep(1000);
               FailCount := 0;
             end;
@@ -303,13 +361,22 @@ begin
       if Length(ScreenData) > 0 then
       begin
         // Compactar dados
-        CompressedData := CompressData(ScreenData);
+        try
+          CompressedData := CompressData(ScreenData);
 
-        // Enviar ao servidor
-        Packet := CreatePacket(CMD_SCREEN_DATA, CompressedData);
-        SendData(Packet);
+          // Enviar ao servidor
+          Packet := CreatePacket(CMD_SCREEN_DATA, CompressedData);
+          SendData(Packet);
 
-        FailCount := 0; // Resetar contador de falhas em caso de sucesso
+          FailCount := 0; // Resetar contador de falhas
+        except
+          on E: Exception do
+          begin
+            Inc(FailCount);
+            Sleep(100);
+            Continue;
+          end;
+        end;
       end
       else
       begin
@@ -321,8 +388,6 @@ begin
     except
       on E: Exception do
       begin
-        // Em caso de erro, tentar GDI
-        UseGDI := True;
         Inc(FailCount);
         Sleep(500);
       end;
@@ -406,6 +471,7 @@ end;
 
 procedure TClientConnection.SetMonitorIndex(Index: Integer);
 begin
+  FMonitorIndex := Index;
   if Assigned(FDuplicator) then
     FDuplicator.SetMonitorIndex(Index);
 end;
