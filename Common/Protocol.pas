@@ -27,6 +27,7 @@ type
   end;
 
   TClientInfo = record
+    ClientID: string;
     ComputerName: string;
     IPAddress: string;
     MACAddress: string;
@@ -96,6 +97,13 @@ var
 begin
   Stream := TMemoryStream.Create;
   try
+    // ClientID
+    Bytes := TEncoding.UTF8.GetBytes(Info.ClientID);
+    Len := Length(Bytes);
+    Stream.Write(Len, SizeOf(Integer));
+    if Len > 0 then
+      Stream.Write(Bytes[0], Len);
+
     // ComputerName
     Bytes := TEncoding.UTF8.GetBytes(Info.ComputerName);
     Len := Length(Bytes);
@@ -145,6 +153,7 @@ var
   Len: Integer;
   Bytes: TBytes;
 begin
+  Result.ClientID := '';
   Result.ComputerName := '';
   Result.IPAddress := '';
   Result.MACAddress := '';
@@ -155,6 +164,15 @@ begin
   try
     Stream.Write(Data[0], Length(Data));
     Stream.Position := 0;
+
+    // ClientID
+    Stream.Read(Len, SizeOf(Integer));
+    if Len > 0 then
+    begin
+      SetLength(Bytes, Len);
+      Stream.Read(Bytes[0], Len);
+      Result.ClientID := TEncoding.UTF8.GetString(Bytes);
+    end;
 
     // ComputerName
     Stream.Read(Len, SizeOf(Integer));

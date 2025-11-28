@@ -14,11 +14,15 @@ type
     btnDisconnect: TButton;
     edtServerIP: TEdit;
     edtServerPort: TEdit;
+    edtClientID: TEdit;
     Label1: TLabel;
     Label2: TLabel;
+    Label3: TLabel;
+    Label4: TLabel;
     Memo1: TMemo;
     StatusBar1: TStatusBar;
     chkAutoStart: TCheckBox;
+    RadioGroup1: TRadioGroup;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnConnectClick(Sender: TObject);
@@ -26,6 +30,8 @@ type
     procedure FormShow(Sender: TObject);
   private
     FClient: TClientConnection;
+    FClientID: string;
+    FMonitorIndex: Integer;
     procedure OnConnected;
     procedure OnDisconnected;
     procedure OnCommand(Command: Byte; const Data: TBytes);
@@ -76,7 +82,23 @@ begin
     Exit;
   end;
 
+  // Validar ID do cliente
+  FClientID := Trim(edtClientID.Text);
+  if FClientID = '' then
+  begin
+    ShowMessage('Por favor, informe o ID do cliente!');
+    Exit;
+  end;
+
+  // Obter índice do monitor selecionado
+  FMonitorIndex := RadioGroup1.ItemIndex;
+
   Log('Conectando ao servidor ' + ServerIP + ':' + IntToStr(ServerPort));
+  Log('ID do Cliente: ' + FClientID);
+  Log('Monitor selecionado: ' + IntToStr(FMonitorIndex + 1));
+
+  // Configurar monitor no cliente antes de conectar
+  FClient.SetMonitorIndex(FMonitorIndex);
 
   if FClient.Connect(ServerIP, ServerPort) then
   begin
@@ -104,6 +126,8 @@ begin
       btnDisconnect.Enabled := True;
       edtServerIP.Enabled := False;
       edtServerPort.Enabled := False;
+      edtClientID.Enabled := False;
+      RadioGroup1.Enabled := False;
       StatusBar1.SimpleText := 'Conectado';
     end);
 
@@ -120,6 +144,8 @@ begin
       btnDisconnect.Enabled := False;
       edtServerIP.Enabled := True;
       edtServerPort.Enabled := True;
+      edtClientID.Enabled := True;
+      RadioGroup1.Enabled := True;
       StatusBar1.SimpleText := 'Desconectado';
     end);
 end;
@@ -201,6 +227,7 @@ var
   Data: TBytes;
   Packet: TBytes;
 begin
+  Info.ClientID := FClientID;
   Info.ComputerName := GetComputerName;
   Info.IPAddress := GetLocalIPAddress;
   Info.MACAddress := GetMACAddress;
@@ -218,6 +245,7 @@ begin
     begin
       InfoCopy := Info;
       Log('Informações enviadas ao servidor');
+      Log('  ID: ' + InfoCopy.ClientID);
       Log('  Computador: ' + InfoCopy.ComputerName);
       Log('  IP: ' + InfoCopy.IPAddress);
       Log('  MAC: ' + InfoCopy.MACAddress);

@@ -18,7 +18,7 @@ object FormClientMain: TFormClientMain
     Left = 0
     Top = 0
     Width = 600
-    Height = 89
+    Height = 120
     Align = alTop
     TabOrder = 0
     object Label1: TLabel
@@ -34,6 +34,20 @@ object FormClientMain: TFormClientMain
       Width = 26
       Height = 13
       Caption = 'Porta:'
+    end
+    object Label3: TLabel
+      Left = 376
+      Top = 19
+      Width = 14
+      Height = 13
+      Caption = 'ID:'
+    end
+    object Label4: TLabel
+      Left = 16
+      Top = 51
+      Width = 41
+      Height = 13
+      Caption = 'Monitor:'
     end
     object edtServerIP: TEdit
       Left = 71
@@ -51,39 +65,60 @@ object FormClientMain: TFormClientMain
       TabOrder = 1
       Text = '9999'
     end
+    object edtClientID: TEdit
+      Left = 396
+      Top = 16
+      Width = 146
+      Height = 21
+      TabOrder = 2
+      Text = 'CLIENT-001'
+    end
     object btnConnect: TButton
       Left = 16
-      Top = 51
+      Top = 86
       Width = 75
       Height = 25
       Caption = 'Conectar'
-      TabOrder = 2
+      TabOrder = 3
       OnClick = btnConnectClick
     end
     object btnDisconnect: TButton
       Left = 97
-      Top = 51
+      Top = 86
       Width = 75
       Height = 25
       Caption = 'Desconectar'
       Enabled = False
-      TabOrder = 3
+      TabOrder = 4
       OnClick = btnDisconnectClick
     end
     object chkAutoStart: TCheckBox
       Left = 192
-      Top = 55
+      Top = 90
       Width = 97
       Height = 17
       Caption = 'Iniciar autom'#225'tico'
-      TabOrder = 4
+      TabOrder = 5
+    end
+    object RadioGroup1: TRadioGroup
+      Left = 71
+      Top = 43
+      Width = 185
+      Height = 37
+      Caption = ' Monitor '
+      Columns = 2
+      ItemIndex = 0
+      Items.Strings = (
+        'Monitor 1'
+        'Monitor 2')
+      TabOrder = 6
     end
   end
   object Memo1: TMemo
     Left = 0
-    Top = 89
+    Top = 120
     Width = 600
-    Height = 292
+    Height = 261
     Align = alClient
     ReadOnly = True
     ScrollBars = ssVertical

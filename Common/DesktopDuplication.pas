@@ -71,6 +71,7 @@ type
     FInitialized: Boolean;
     FWidth: Integer;
     FHeight: Integer;
+    FMonitorIndex: Integer;
     function Initialize: Boolean;
     procedure Cleanup;
   public
@@ -78,9 +79,11 @@ type
     destructor Destroy; override;
     function CaptureScreen(Bitmap: TBitmap): Boolean;
     function CaptureScreenToJPEG(Quality: Integer = 75): TBytes;
+    procedure SetMonitorIndex(Index: Integer);
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
     property Initialized: Boolean read FInitialized;
+    property MonitorIndex: Integer read FMonitorIndex write SetMonitorIndex;
   end;
 
 implementation
@@ -91,6 +94,7 @@ constructor TDesktopDuplicator.Create;
 begin
   inherited Create;
   FInitialized := False;
+  FMonitorIndex := 0; // Monitor padrão
   FDevice := nil;
   FDeviceContext := nil;
   FOutputDuplication := nil;
@@ -171,8 +175,8 @@ begin
     if Failed(hr) then
       Exit;
 
-    // Get output
-    hr := DxgiAdapter.EnumOutputs(0, DxgiOutput);
+    // Get output (usando o índice do monitor selecionado)
+    hr := DxgiAdapter.EnumOutputs(FMonitorIndex, DxgiOutput);
     if Failed(hr) then
       Exit;
 
@@ -324,6 +328,20 @@ begin
     Stream.Free;
     JPEGImage.Free;
     Bitmap.Free;
+  end;
+end;
+
+procedure TDesktopDuplicator.SetMonitorIndex(Index: Integer);
+begin
+  if Index <> FMonitorIndex then
+  begin
+    FMonitorIndex := Index;
+    // Reinicializar para o novo monitor
+    if FInitialized then
+    begin
+      Cleanup;
+      Initialize;
+    end;
   end;
 end;
 

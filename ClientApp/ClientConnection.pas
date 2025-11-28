@@ -36,6 +36,7 @@ type
     procedure ProcessMouseCommand(const Data: TBytes);
     procedure ProcessKeyboardCommand(const Data: TBytes);
     procedure LockWorkStation;
+    procedure SetMonitorIndex(Index: Integer);
     property Connected: Boolean read FConnected;
     property OnConnected: TConnectedEvent read FOnConnected write FOnConnected;
     property OnDisconnected: TDisconnectedEvent read FOnDisconnected write FOnDisconnected;
@@ -252,16 +253,24 @@ var
   CompressedData: TBytes;
   Packet: TBytes;
   UseGDI: Boolean;
+  FailCount: Integer;
 begin
   UseGDI := False; // Tentar Desktop Duplication primeiro
+  FailCount := 0;
 
   while FCapturing and FConnected do
   begin
     try
+      SetLength(ScreenData, 0);
+
       if not UseGDI then
       begin
         // Tentar Desktop Duplication API
-        ScreenData := FDuplicator.CaptureScreenToJPEG(75);
+        try
+          ScreenData := FDuplicator.CaptureScreenToJPEG(75);
+        except
+          // Se falhar, não fazer nada e continuar para GDI
+        end;
 
         if Length(ScreenData) = 0 then
         begin
@@ -270,10 +279,25 @@ begin
         end;
       end;
 
-      if UseGDI then
+      if UseGDI or (Length(ScreenData) = 0) then
       begin
         // Usar GDI como fallback (funciona sem admin)
-        ScreenData := CaptureScreenGDI(75);
+        try
+          ScreenData := CaptureScreenGDI(75);
+        except
+          on E: Exception do
+          begin
+            Inc(FailCount);
+            if FailCount > 10 then
+            begin
+              // Muitas falhas, aguardar mais tempo
+              Sleep(1000);
+              FailCount := 0;
+            end;
+            Sleep(100);
+            Continue;
+          end;
+        end;
       end;
 
       if Length(ScreenData) > 0 then
@@ -284,6 +308,12 @@ begin
         // Enviar ao servidor
         Packet := CreatePacket(CMD_SCREEN_DATA, CompressedData);
         SendData(Packet);
+
+        FailCount := 0; // Resetar contador de falhas em caso de sucesso
+      end
+      else
+      begin
+        Inc(FailCount);
       end;
 
       // Aguardar antes da próxima captura (aproximadamente 10 FPS)
@@ -293,6 +323,7 @@ begin
       begin
         // Em caso de erro, tentar GDI
         UseGDI := True;
+        Inc(FailCount);
         Sleep(500);
       end;
     end;
@@ -371,6 +402,12 @@ end;
 procedure TClientConnection.LockWorkStation;
 begin
   Winapi.Windows.LockWorkStation;
+end;
+
+procedure TClientConnection.SetMonitorIndex(Index: Integer);
+begin
+  if Assigned(FDuplicator) then
+    FDuplicator.SetMonitorIndex(Index);
 end;
 
 end.

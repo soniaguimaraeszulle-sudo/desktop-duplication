@@ -69,8 +69,8 @@ begin
 
   with ListView1.Columns.Add do
   begin
-    Caption := 'ID';
-    Width := 50;
+    Caption := 'ID CLIENTE';
+    Width := 100;
   end;
 
   with ListView1.Columns.Add do
@@ -286,7 +286,11 @@ begin
     begin
       Client := FClients[i];
       Item := ListView1.Items.Add;
-      Item.Caption := IntToStr(Client.ClientID);
+      // Exibir o ID do cliente ao invés do ID sequencial
+      if Client.Info.ClientID <> '' then
+        Item.Caption := Client.Info.ClientID
+      else
+        Item.Caption := IntToStr(Client.ClientID);
       Item.SubItems.Add(Client.Info.ComputerName);
       Item.SubItems.Add(Client.Info.IPAddress);
       Item.SubItems.Add(Client.Info.MACAddress);
