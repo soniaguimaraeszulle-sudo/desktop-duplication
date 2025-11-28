@@ -16,7 +16,9 @@ type
     FSocket: TSocket;
     FOnDisconnected: TClientDisconnectedEvent;
     FOnData: TClientDataEvent;
+    FAccumulatedBuffer: TBytes;
     procedure ProcessData(const Buffer: TBytes);
+    procedure AccumulateAndProcess(const NewData: TBytes);
   protected
     procedure Execute; override;
   public
@@ -59,11 +61,12 @@ begin
   inherited Create(False);
   FreeOnTerminate := True;
   FSocket := ASocket;
+  SetLength(FAccumulatedBuffer, 0);
 end;
 
 procedure TClientThread.Execute;
 var
-  Buffer: array[0..8191] of Byte;
+  Buffer: array[0..65535] of Byte; // Aumentado para 64KB
   RecvLen: Integer;
   Data: TBytes;
 begin
@@ -81,10 +84,56 @@ begin
 
     SetLength(Data, RecvLen);
     Move(Buffer[0], Data[0], RecvLen);
-    ProcessData(Data);
+    AccumulateAndProcess(Data);
   end;
 
   closesocket(FSocket);
+end;
+
+procedure TClientThread.AccumulateAndProcess(const NewData: TBytes);
+var
+  Command: Byte;
+  Data: TBytes;
+  OldLen: Integer;
+  Header: TPacketHeader;
+  PacketSize: Integer;
+  RemainingData: TBytes;
+begin
+  // Adicionar novos dados ao buffer acumulado
+  OldLen := Length(FAccumulatedBuffer);
+  SetLength(FAccumulatedBuffer, OldLen + Length(NewData));
+  Move(NewData[0], FAccumulatedBuffer[OldLen], Length(NewData));
+
+  // Tentar processar todos os pacotes completos no buffer
+  while Length(FAccumulatedBuffer) >= SizeOf(TPacketHeader) do
+  begin
+    // Ler o cabeçalho para saber o tamanho do pacote
+    Move(FAccumulatedBuffer[0], Header, SizeOf(TPacketHeader));
+    PacketSize := SizeOf(TPacketHeader) + Integer(Header.DataSize);
+
+    // Se não temos o pacote completo, aguardar mais dados
+    if Length(FAccumulatedBuffer) < PacketSize then
+      Break;
+
+    // Processar o pacote completo
+    if ParsePacket(FAccumulatedBuffer, Command, Data) then
+    begin
+      if Assigned(FOnData) then
+        FOnData(FSocket, Command, Data);
+    end;
+
+    // Remover o pacote processado do buffer
+    if Length(FAccumulatedBuffer) > PacketSize then
+    begin
+      SetLength(RemainingData, Length(FAccumulatedBuffer) - PacketSize);
+      Move(FAccumulatedBuffer[PacketSize], RemainingData[0], Length(RemainingData));
+      FAccumulatedBuffer := RemainingData;
+    end
+    else
+    begin
+      SetLength(FAccumulatedBuffer, 0);
+    end;
+  end;
 end;
 
 procedure TClientThread.ProcessData(const Buffer: TBytes);

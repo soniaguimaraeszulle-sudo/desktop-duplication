@@ -174,12 +174,35 @@ begin
 end;
 
 procedure TClientConnection.SendData(const Data: TBytes);
+var
+  TotalSent: Integer;
+  BytesSent: Integer;
+  Remaining: Integer;
 begin
   if not FConnected then
     Exit;
 
-  if Length(Data) > 0 then
-    send(FSocket, Data[0], Length(Data), 0);
+  if Length(Data) = 0 then
+    Exit;
+
+  TotalSent := 0;
+  Remaining := Length(Data);
+
+  // Enviar em loop até tudo ser enviado
+  while (TotalSent < Length(Data)) and FConnected do
+  begin
+    BytesSent := send(FSocket, Data[TotalSent], Remaining, 0);
+
+    if BytesSent <= 0 then
+    begin
+      // Erro ao enviar
+      DoLog('Erro ao enviar dados: ' + IntToStr(WSAGetLastError));
+      Break;
+    end;
+
+    Inc(TotalSent, BytesSent);
+    Dec(Remaining, BytesSent);
+  end;
 end;
 
 procedure TClientConnection.SendPong;
