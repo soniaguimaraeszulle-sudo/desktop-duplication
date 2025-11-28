@@ -25,6 +25,8 @@ type
     Label1: TLabel;
     Timer1: TTimer;
     StatusBar1: TStatusBar;
+    Memo1: TMemo;
+    Splitter1: TSplitter;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnStartClick(Sender: TObject);
@@ -44,6 +46,7 @@ type
     function FindClient(Socket: TSocket): TClientData;
     procedure SendPingToAll;
     function CalculatePing(Client: TClientData): Integer;
+    procedure Log(const Msg: string);
   public
   end;
 
@@ -139,11 +142,14 @@ begin
     edtPort.Enabled := False;
     Timer1.Enabled := True;
     StatusBar1.SimpleText := Format('Servidor iniciado na porta %d', [Port]);
+    Log(Format('Servidor iniciado na porta %d', [Port]));
+    Log('Aguardando conexões de clientes...');
   end
   else
   begin
     ShowMessage('Erro ao iniciar servidor!');
     FreeAndNil(FServer);
+    Log('ERRO: Falha ao iniciar servidor!');
   end;
 end;
 
@@ -164,6 +170,8 @@ begin
   btnStop.Enabled := False;
   edtPort.Enabled := True;
   StatusBar1.SimpleText := 'Servidor parado';
+  Log('Servidor parado');
+  Log('---');
 end;
 
 procedure TFormMain.OnClientConnected(Socket: TSocket);
@@ -176,20 +184,40 @@ begin
     begin
       AddClient(SocketCopy);
       StatusBar1.SimpleText := Format('Cliente conectado - Total: %d', [FClients.Count]);
+      Log(Format('Cliente conectado [Socket: %d] - Total: %d', [SocketCopy, FClients.Count]));
     end);
 end;
 
 procedure TFormMain.OnClientDisconnected(Socket: TSocket);
 var
   SocketCopy: TSocket;
+  Client: TClientData;
+  ClientInfo: string;
 begin
   SocketCopy := Socket;
+
+  // Obter informações do cliente antes de remover
+  Client := FindClient(SocketCopy);
+  if Assigned(Client) then
+  begin
+    if Client.Info.ClientID <> '' then
+      ClientInfo := Format('[%s - %s]', [Client.Info.ClientID, Client.Info.ComputerName])
+    else
+      ClientInfo := Format('[ID: %d]', [Client.ClientID]);
+  end
+  else
+    ClientInfo := Format('[Socket: %d]', [SocketCopy]);
+
   TThread.Queue(nil,
     procedure
+    var
+      InfoCopy: string;
     begin
+      InfoCopy := ClientInfo;
       RemoveClient(SocketCopy);
       UpdateClientList;
       StatusBar1.SimpleText := Format('Cliente desconectado - Total: %d', [FClients.Count]);
+      Log(Format('Cliente desconectado %s - Total: %d', [InfoCopy, FClients.Count]));
     end);
 end;
 
@@ -206,6 +234,8 @@ begin
 
   TThread.Queue(nil,
     procedure
+    var
+      ClientIdentifier: string;
     begin
       Client := FindClient(SocketCopy);
       if not Assigned(Client) then
@@ -216,12 +246,36 @@ begin
         begin
           Client.Info := BytesToClientInfo(DataCopy);
           UpdateClientList;
+
+          // Log de informações do cliente
+          if Client.Info.ClientID <> '' then
+            ClientIdentifier := Client.Info.ClientID
+          else
+            ClientIdentifier := IntToStr(Client.ClientID);
+
+          Log(Format('Informações recebidas de %s:', [ClientIdentifier]));
+          Log(Format('  Computador: %s', [Client.Info.ComputerName]));
+          Log(Format('  IP: %s | MAC: %s', [Client.Info.IPAddress, Client.Info.MACAddress]));
+          Log(Format('  SO: %s', [Client.Info.OSVersion]));
         end;
 
         CMD_PONG:
         begin
           Client.LastPing := Now;
           UpdateClientList;
+        end;
+
+        CMD_SCREEN_DATA:
+        begin
+          // Log de recebimento de frame (apenas de vez em quando para não encher o log)
+          if Random(100) < 5 then  // 5% das vezes
+          begin
+            if Client.Info.ClientID <> '' then
+              ClientIdentifier := Client.Info.ClientID
+            else
+              ClientIdentifier := IntToStr(Client.ClientID);
+            Log(Format('Recebendo frames de %s... (%.2f KB)', [ClientIdentifier, Length(DataCopy) / 1024]));
+          end;
         end;
       end;
     end);
@@ -364,6 +418,14 @@ begin
   RemoteForm := TFormRemoteView.Create(Self);
   RemoteForm.SetClient(FServer, Client.Socket, Client.Info.ComputerName);
   RemoteForm.Show;
+end;
+
+procedure TFormMain.Log(const Msg: string);
+begin
+  if Memo1.Lines.Count > 500 then
+    Memo1.Lines.Delete(0);  // Limpar linhas antigas para não ficar muito grande
+
+  Memo1.Lines.Add(FormatDateTime('hh:nn:ss', Now) + ' - ' + Msg);
 end;
 
 end.

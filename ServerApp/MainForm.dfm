@@ -59,13 +59,31 @@ object FormMain: TFormMain
     Left = 0
     Top = 57
     Width = 900
-    Height = 424
+    Height = 274
     Align = alClient
     Columns = <>
     RowSelect = True
     TabOrder = 1
     ViewStyle = vsReport
     OnDblClick = ListView1DblClick
+  end
+  object Splitter1: TSplitter
+    Left = 0
+    Top = 331
+    Width = 900
+    Height = 5
+    Cursor = crVSplit
+    Align = alBottom
+  end
+  object Memo1: TMemo
+    Left = 0
+    Top = 336
+    Width = 900
+    Height = 145
+    Align = alBottom
+    ReadOnly = True
+    ScrollBars = ssVertical
+    TabOrder = 2
   end
   object StatusBar1: TStatusBar
     Left = 0
